@@ -1,4 +1,5 @@
 # encoding: utf-8
+require "time"
 
 # ─── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -47,24 +48,37 @@ end
 # ─── User-specific assertions ──────────────────────────────────────────────────
 
 Then("the user data has an email address") do
-  user = MarvelAppClient.data_from(@response, "user")
+  user            = MarvelAppClient.data_from(@response, "user")
+  expected_fields = datapool_read("user profile", "expected_fields")
+
   expect(user).not_to be_nil
-  expect(user["email"]).to match(/@/), "Expected a valid email but got: #{user['email'].inspect}"
+
+  expected_fields.each do |field|
+    expect(user).to have_key(field),
+      "Expected user to have '#{field}' field. Got: #{user.keys.join(', ')}"
+  end
+
+  expect(user["email"]).to match(/@/),
+    "Expected a valid email but got: #{user['email'].inspect}"
 end
 
 # ─── Auth-specific assertions ──────────────────────────────────────────────────
 
 Then("the auth data has a non-empty scopes string") do
-  auth = MarvelAppClient.data_from(@response, "auth")
+  auth            = MarvelAppClient.data_from(@response, "auth")
+  min_scope_count = datapool_read("auth context", "min_scope_count")
+
   expect(auth).not_to be_nil
   expect(auth["scopes"]).not_to be_nil
-  expect(auth["scopes"].split(" ").length).to be > 1,
-    "Expected multiple scopes but got: #{auth['scopes'].inspect}"
+
+  scope_count = auth["scopes"].to_s.split.length
+  expect(scope_count).to be >= min_scope_count,
+    "Expected at least #{min_scope_count} scopes but got #{scope_count}: #{auth['scopes'].inspect}"
 end
 
 Then("the auth data has an expiry date") do
   auth = MarvelAppClient.data_from(@response, "auth")
   expect(auth["expires"]).not_to be_nil
   expect { Time.parse(auth["expires"]) }.not_to raise_error,
-    "Expected a parseable date but got: #{auth['expires'].inspect}"
+    "Expected a parseable ISO date but got: #{auth['expires'].inspect}"
 end

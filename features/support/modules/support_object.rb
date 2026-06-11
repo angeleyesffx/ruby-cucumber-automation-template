@@ -10,9 +10,10 @@ module SupportObject
     case dtp
     when String then dtp
     when Hash
-      value = dtp[key.to_s] || dtp[key.to_sym]
-      raise "DataPool: field '#{key}' not found in '#{data}'. Fields: #{dtp.keys.join(', ')}" if value.nil?
-      value
+      # Use has_key? to correctly handle falsy values (false, 0, "")
+      k = dtp.key?(key.to_s) ? key.to_s : key.to_sym
+      raise "DataPool: field '#{key}' not found in '#{data}'. Fields: #{dtp.keys.join(', ')}" unless dtp.key?(k)
+      dtp[k]
     else
       raise "DataPool: unexpected type #{dtp.class} for dataset '#{data}'"
     end
