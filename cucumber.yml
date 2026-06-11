@@ -1,0 +1,13 @@
+# Local runs
+default:  --publish-quiet --format pretty --format html --out reports/cucumber_report.html
+headless: --publish-quiet --format pretty --format html --out reports/cucumber_report.html HEADLESS=true
+
+# CI — all tests headless, generates HTML report + rerun file for retries
+ci: --publish-quiet --format html --out reports/cucumber_report.html --format rerun --out reports/rerun.txt HEADLESS=true
+
+# Targeted suites (used by Rakefile and CI jobs)
+browser: --publish-quiet --tags @browser --format pretty --format html --out reports/browser_report.html HEADLESS=true
+api:     --publish-quiet --tags @api     --format pretty --format html --out reports/api_report.html
+
+# Retry — replays scenarios listed in reports/rerun.txt (pass the file as an arg)
+rerun: --publish-quiet --format pretty

@@ -1,4 +1,8 @@
 homolog:
-   url: http://www.google.com
-desenv:
-   url: http://www.hotmail.com
+  url: "https://books.toscrape.com"
+
+staging:
+  url: "https://books.toscrape.com"
+
+development:
+  url: "http://localhost:3000"

@@ -1,93 +1,43 @@
-#coding: utf-8
- require 'capybara/cucumber'
- require 'capybara-screenshot/cucumber'
- require 'capybara/rspec'
- require 'capybara-screenshot/rspec'
- require 'selenium-webdriver'
- require 'yaml'
+# encoding: utf-8
+require "dotenv"
+Dotenv.load  # loads .env from cwd (project root when invoked via bundle exec)
 
- ENV['TEST_ENV'] ||= 'homolog'
- ENV['DATA_POOL'] ||= 'DATA_ACCESS'
- BASE_URL = YAML.load_file(File.dirname(__FILE__) + "/config.yml")[ENV['TEST_ENV']]["url"]
+require "capybara/cucumber"
+require "capybara/rspec"
+require "selenium-webdriver"
+require "yaml"
+require "json"
 
-    Capybara.register_driver :selenium_proxy do |app|
-        #In this case selenium is using a proxy configuration with Chrome browser
-        options = Selenium::WebDriver::Chrome::Options.new(args: ['start-maximized', 'proxy.intranet:1111'])
-        options.add_argument('--disable-geolocation')
-       #Capybara::Selenium::Driver.new(app, :browser => :chrome, options: options)
-        Capybara::Selenium::Driver.new(app, :browser => :firefox, options: options)
-    end
+# Load support modules before page objects (order matters for include SupportObject in BasePage)
+require_relative "modules/support_object"
 
-    Capybara.ignore_hidden_elements = false
-    Capybara.default_max_wait_time = 20
+# Load all page objects
+Dir[File.join(__dir__, "..", "pages", "**", "*.rb")].sort.each { |f| require f }
 
-    ###-----------------------------DEPRECATED CODE---------------------------------------###
-    #  #encoding: utf-8
-    #   require 'capybara/cucumber'
-    #   require 'capybara/rspec'
-    #   require 'selenium-webdriver'
-    #
-    #   Capybara.register_driver :selenium do |app|
-    #   Capybara::Selenium::Driver.new(app, browser: :chrome)
-    #   end
-    #
-    #   Capybara.javascript_driver = :chrome
-    #
-    #   Capybara.configure do |config|
-    #     config.default_max_wait_time = 10 # seconds
-    #     config.default_driver        = :selenium
-    #   end                                                                                 #
-    # Capybara.register_driver :selenium_proxy do |app|                                     #
-    #    profile = Selenium::WebDriver::Chrome::Profile.new                                 #
-    #    profile["network.proxy.type"] = 1                                                  #
-    #    profile["network.proxy.http"] = "proxy.intranet"                                   #
-    #    profile["network.proxy.http_port"] = 1111                                          #
-    #    Capybara::Selenium::Driver.new(app, :browser => :chrome, :profile => profile)      #
-    # end                                                                                   #
-    #                                                                                       #
-    ###---------------------------END DEPRECATED CODE-------------------------------------###
+ENV["TEST_ENV"] ||= "homolog"
+HEADLESS = ENV.fetch("HEADLESS", "false") == "true"
 
-    #Start new driver with chosen browser
-    driver = Capybara.default_driver = :selenium_proxy
-    path = "../Ruby-Cucumber-Singleton/features/support/screenshots/bugs"
-    # register the new driver to the screenshot callback
-    # necessary because lack of it may cause chrome driver to crash
-    # does nothing since we are already using AfterStep to handle screenshot
-    Capybara::Screenshot.register_driver(:selenium_proxy) do |driver, path|
-        page.save_screenshot(path)
-    end
-   
-    Capybara::Screenshot.autosave_on_failure = false
+config = YAML.load_file(File.join(__dir__, "config.yml"))
+BASE_URL = config.dig(ENV["TEST_ENV"], "url") || raise("Missing url for env: #{ENV['TEST_ENV']}")
 
-    def close 
-        Capybara.current_session.driver.quit
-    end   
+Capybara.register_driver :chrome do |app|
+  options = Selenium::WebDriver::Chrome::Options.new
+  options.add_argument("--window-size=1920,1080")
+  options.add_argument("--disable-dev-shm-usage")
+  options.add_argument("--no-sandbox")
+  options.add_argument("--disable-blink-features=AutomationControlled")
 
-    def reset_session
-        Capybara.reset_session!
-    end  
+  if HEADLESS
+    options.add_argument("--headless=new")
+    options.add_argument("--disable-gpu")
+  end
 
-    Before do |scenario|
-        close
-        @driver = driver
-        @scenario_name = scenario.name
-    end
+  Capybara::Selenium::Driver.new(app, browser: :chrome, options: options)
+end
 
-    After do |scenario|
-        path_failed = "../Ruby-Cucumber-Singleton/features/support/screenshots/bugs"
-        screenshot_file_failed = "BUG-#{@scenario_name}-#{Time.now.strftime('%Y-%m-%d %H-%M-%S')}.png"
-        file_path_failed = File.expand_path(path_failed)+'/'+screenshot_file_failed
-        page.save_screenshot(file_path_failed) if scenario.failed?
-    end
+Capybara.default_driver     = :chrome
+Capybara.javascript_driver  = :chrome
+Capybara.default_max_wait_time = 20
 
-    AfterStep do |scenario, step|
-        if scenario.passed?
-            path = "../Ruby-Cucumber-Singleton/features/support/screenshots"
-            screenshot_file = "PASSED-#{@scenario_name}-#{Time.now.strftime('%Y-%m-%d %H-%M-%S')}.png"
-            file_path = File.expand_path(path)+'/'+screenshot_file
-            page.save_screenshot(file_path)
-        end
-    end
-
-
-
+# Make SupportObject utilities (datapool_read, generators, etc.) available in step definitions
+World(SupportObject)

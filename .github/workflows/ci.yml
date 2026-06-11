@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  schedule:
+    - cron: "0 9 * * 1-5"   # Mon–Fri 09:00 UTC — daily smoke run
+
+permissions:
+  contents: read
+
+jobs:
+  # ─── Browser Tests ─────────────────────────────────────────────────────────
+  browser-tests:
+    name: Browser Tests (Books to Scrape)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby 3.3
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true   # caches vendor/bundle between runs
+
+      - name: Install Chrome (stable)
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
+      - name: Create reports directories
+        run: mkdir -p reports/screenshots/failures
+
+      - name: Run browser tests
+        id: run_browser
+        run: bundle exec cucumber --tags @browser --profile ci
+        continue-on-error: true          # allow rerun step to decide final outcome
+        env:
+          HEADLESS: "true"
+          TEST_ENV: homolog
+
+      - name: Rerun failed browser scenarios
+        if: steps.run_browser.outcome == 'failure'
+        run: bundle exec cucumber @reports/rerun.txt --profile rerun
+        env:
+          HEADLESS: "true"
+          TEST_ENV: homolog
+
+      - name: Upload browser test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-report-${{ github.run_number }}
+          path: reports/
+          retention-days: 30
+
+  # ─── API Tests ─────────────────────────────────────────────────────────────
+  api-tests:
+    name: API Tests (Marvel App)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby 3.3
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+
+      - name: Create reports directory
+        run: mkdir -p reports
+
+      - name: Run Marvel App API tests
+        run: bundle exec cucumber --tags @api --profile api
+        env:
+          MARVEL_APP_TOKEN: ${{ secrets.MARVEL_APP_TOKEN }}
+
+      - name: Upload API test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-report-${{ github.run_number }}
+          path: reports/
+          retention-days: 30

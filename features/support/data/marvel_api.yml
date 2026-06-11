@@ -1,0 +1,14 @@
+user profile:
+  expected_fields:
+    - email
+    - username
+    - pk
+    - firstName
+    - lastName
+
+auth context:
+  expected_fields:
+    - token
+    - expires
+    - scopes
+  min_scope_count: 2

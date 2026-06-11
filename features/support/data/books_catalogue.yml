@@ -1,0 +1,14 @@
+mystery:
+  name: "Mystery"
+  min_books: 1
+  has_pagination: true
+
+travel:
+  name: "Travel"
+  min_books: 1
+  has_pagination: false
+
+science:
+  name: "Science"
+  min_books: 1
+  has_pagination: false
